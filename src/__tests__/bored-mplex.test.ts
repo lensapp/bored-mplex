@@ -9,7 +9,7 @@ describe("BoredMplex", () => {
   describe("onStream", () => {
     it ("calls onStream on open", async () => {
       let streamOpened = false;
-      const mplex = new BoredMplex((stream) => {
+      const mplex = new BoredMplex(() => {
         streamOpened = true;
       });
 
@@ -25,7 +25,7 @@ describe("BoredMplex", () => {
 
     it ("does not call onStream without open", async () => {
       let streamOpened = false;
-      const mplex = new BoredMplex((stream) => {
+      const mplex = new BoredMplex(() => {
         streamOpened = true;
       });
 
@@ -105,7 +105,7 @@ describe("BoredMplex", () => {
   describe("onStream", () => {
     it("emits stream end from close message", (done) => {
       const mplex = new BoredMplex((stream) => {
-        stream.on("finish", (chunk: Buffer) => {
+        stream.on("finish", () => {
           done();
         });
       });
