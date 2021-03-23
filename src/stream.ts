@@ -9,7 +9,7 @@ export class Stream extends Duplex {
     });
 
     this.on("finish", () => {
-      if (this.writableEnded) {
+      if (session.writableEnded) {
         return;
       }
 
@@ -32,7 +32,7 @@ export class Stream extends Duplex {
   }
 
   public _write(chunk: any, encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
-    if (this.writableEnded) return;
+    if (this.session.writableEnded) return;
 
     this.session.push(pack({
       id: this.id,
