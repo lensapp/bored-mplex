@@ -1,6 +1,6 @@
 
 export type StreamMessage = {
-  id: string;
+  id: number;
   type: "open" | "data" | "close";
   data?: Buffer;
 };

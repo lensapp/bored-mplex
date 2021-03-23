@@ -1,14 +1,15 @@
 import { BoredMplex } from "./bored-mplex";
 import { Stream } from "./stream";
-import { randomBytes } from "crypto";
 
 export class BoredMplexClient extends BoredMplex {
+  private nextStreamID = 0;
+
   constructor() {
     super();
   }
 
   openStream(): Stream {
-    const stream = new Stream(randomBytes(16).toString("hex"), this);
+    const stream = new Stream(this.nextStreamID++, this);
 
     this.streams.set(stream.id, stream);
     stream.openStream();

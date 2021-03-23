@@ -1,5 +1,5 @@
 import { BoredMplex } from "../bored-mplex";
-import { decode, encode } from "@msgpack/msgpack";
+import { pack, unpack } from "msgpackr";
 import { PassThrough } from "stream";
 import { StreamMessage } from "../types";
 
@@ -13,7 +13,7 @@ describe("BoredMplex", () => {
         streamOpened = true;
       });
 
-      mplex.write(encode({
+      mplex.write(pack({
         id: "foo",
         type: "open"
       }));
@@ -29,7 +29,7 @@ describe("BoredMplex", () => {
         streamOpened = true;
       });
 
-      mplex.write(encode({
+      mplex.write(pack({
         id: "foo",
         type: "data"
       }));
@@ -49,12 +49,12 @@ describe("BoredMplex", () => {
         });
       });
 
-      mplex.write(encode({
+      mplex.write(pack({
         id: "foo",
         type: "open"
       }));
       ["hello", "world"].forEach((msg) => {
-        mplex.write(encode({
+        mplex.write(pack({
           id: "foo",
           type: "data",
           data: Buffer.from(msg)
@@ -76,27 +76,27 @@ describe("BoredMplex", () => {
       });
 
       passthrough.on("data", (chunk: Buffer) => {
-        const msg = decode(chunk) as StreamMessage;
+        const msg = unpack(chunk) as StreamMessage;
 
         if (msg.data) streamData.push(msg.data.toString());
       });
 
       mplex.pipe(passthrough);
-      mplex.write(encode({
+      mplex.write(pack({
         id: "foo",
         type: "open"
       }));
       ["world", "bored"].forEach((msg) => {
-        mplex.write(encode({
+        mplex.write(pack({
           id: "foo",
           type: "data",
           data: Buffer.from(msg)
         }));
       });
 
-      mplex.end();
-
       await sleep(20);
+
+      mplex.end();
 
       expect(streamData).toEqual(["hello world", "hello bored"]);
     });
@@ -110,12 +110,12 @@ describe("BoredMplex", () => {
         });
       });
 
-      mplex.write(encode({
+      mplex.write(pack({
         id: "foo",
         type: "open"
       }));
 
-      mplex.write(encode({
+      mplex.write(pack({
         id: "foo",
         type: "close"
       }));

@@ -1,5 +1,5 @@
 import { BoredMplexClient } from "../bored-mplex-client";
-import { decode } from "@msgpack/msgpack";
+import { unpack } from "msgpackr";
 import { PassThrough } from "stream";
 import { StreamMessage } from "../types";
 
@@ -14,7 +14,7 @@ describe("BoredMplexClient", () => {
     incoming.pipe(stream);
 
     outgoing.on("data", (chunk: Buffer) => {
-      const msg = decode(chunk) as StreamMessage;
+      const msg = unpack(chunk) as StreamMessage;
 
       if (msg.type === "data") {
         expect(msg.data?.toString()).toEqual("random data");

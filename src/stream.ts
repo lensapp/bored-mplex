@@ -1,9 +1,9 @@
-import { encode } from "@msgpack/msgpack";
+import { pack } from "msgpackr";
 import { Duplex } from "stream";
 import { BoredMplex } from "./bored-mplex";
 
 export class Stream extends Duplex {
-  constructor(public id: string, private session: BoredMplex) {
+  constructor(public id: number, private session: BoredMplex) {
     super({
       emitClose: true
     });
@@ -13,7 +13,7 @@ export class Stream extends Duplex {
         return;
       }
 
-      session.push(encode({
+      session.push(pack({
         id,
         type: "close"
       }));
@@ -21,7 +21,7 @@ export class Stream extends Duplex {
   }
 
   openStream() {
-    this.session.push(encode({
+    this.session.push(pack({
       id: this.id,
       type: "open"
     }));
@@ -32,7 +32,9 @@ export class Stream extends Duplex {
   }
 
   public _write(chunk: any, encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
-    this.session.push(encode({
+    if (this.writableEnded) return;
+
+    this.session.push(pack({
       id: this.id,
       type: "data",
       data: chunk

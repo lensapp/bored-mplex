@@ -1,6 +1,6 @@
 {
   "name": "bored-mplex",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "main": "lib/index",
   "author": "Mirantis Inc",
   "license": "MIT",
@@ -22,6 +22,6 @@
     "typescript": "^4.2.3"
   },
   "dependencies": {
-    "@msgpack/msgpack": "^2.5.1"
+    "msgpackr": "^1.2.7"
   }
 }
