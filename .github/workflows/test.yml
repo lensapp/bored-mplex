@@ -1,6 +1,9 @@
 name: Test
 on:
-  - pull_request
+  pull_request: true
+  push:
+    branches:
+      - main
 jobs:
   build:
     name: Test
