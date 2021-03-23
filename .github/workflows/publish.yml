@@ -32,3 +32,5 @@ jobs:
 
       - name: Test
         run: npm publish --access public
+        with:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
