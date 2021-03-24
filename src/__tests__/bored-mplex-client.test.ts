@@ -25,4 +25,13 @@ describe("BoredMplexClient", () => {
 
     incoming.write("random data");
   });
+
+  describe("openStream", () => {
+    it("returns a stream with id", () => {
+      const mplex = new BoredMplexClient();
+
+      expect(mplex.openStream().id).toEqual(1);
+      expect(mplex.openStream().id).toEqual(2);
+    });
+  });
 });
