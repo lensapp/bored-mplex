@@ -2,7 +2,7 @@ import { BoredMplex } from "./bored-mplex";
 import { Stream } from "./stream";
 
 export class BoredMplexClient extends BoredMplex {
-  private nextStreamID = 0;
+  private nextStreamID = 1;
 
   constructor() {
     super();

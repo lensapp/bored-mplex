@@ -121,4 +121,49 @@ describe("BoredMplex", () => {
       }));
     });
   });
+
+  describe("keepalive", () => {
+    it("responds to ping with pong", (done) => {
+      const stream = new PassThrough();
+      const mplex = new BoredMplex();
+
+      stream.on("data", (chunk: Buffer) => {
+        const msg = unpack(chunk);
+
+        if (msg.type === "pong") {
+          done();
+        }
+      });
+
+      mplex.pipe(stream);
+      mplex.write(pack({
+        id: 0,
+        type: "ping"
+      }));
+    });
+
+    it("emits pong event on pong message", (done) => {
+      const mplex = new BoredMplex();
+
+      mplex.on("pong", () => {
+        done();
+      });
+      mplex.write(pack({
+        id: 0,
+        type: "pong"
+      }));
+    });
+
+    it("emits timeout event if pong takes too long", (done) => {
+      jest.useFakeTimers();
+
+      const mplex = new BoredMplex();
+
+      mplex.enableKeepAlive(1000);
+      mplex.on("timeout", () => {
+        done();
+      });
+      jest.advanceTimersByTime(5000);
+    });
+  });
 });
