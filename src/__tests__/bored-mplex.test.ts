@@ -153,5 +153,17 @@ describe("BoredMplex", () => {
         type: "pong"
       }));
     });
+
+    it("emits finish event if pong takes too long", (done) => {
+      jest.useFakeTimers();
+
+      const mplex = new BoredMplex();
+
+      mplex.enableKeepAlive(1000);
+      mplex.on("timeout", () => {
+        done();
+      });
+      jest.advanceTimersByTime(5000);
+    });
   });
 });
