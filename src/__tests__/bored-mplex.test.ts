@@ -154,7 +154,7 @@ describe("BoredMplex", () => {
       }));
     });
 
-    it("emits finish event if pong takes too long", (done) => {
+    it("emits timeout event if pong takes too long", (done) => {
       jest.useFakeTimers();
 
       const mplex = new BoredMplex();
