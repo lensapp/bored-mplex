@@ -11,6 +11,13 @@ export class BoredMplex extends Transform {
 
   constructor(private onStream?: (stream: Stream) => void, opts?: TransformOptions) {
     super(opts);
+
+    this.on("error", () => {
+      this.streams.forEach((stream) => stream.end());
+    });
+    this.on("finish", () => {
+      this.streams.forEach((stream) => stream.end());
+    });
   }
 
   enableKeepAlive(interval = 10_000) {
@@ -33,6 +40,10 @@ export class BoredMplex extends Transform {
   }
 
   ping() {
+    if (this.writableEnded) {
+      return;
+    }
+
     this.push(pack({
       id: 0,
       type: "ping"
@@ -40,6 +51,10 @@ export class BoredMplex extends Transform {
   }
 
   pong() {
+    if (this.writableEnded) {
+      return;
+    }
+
     this.push(pack({
       id: 0,
       type: "pong"
