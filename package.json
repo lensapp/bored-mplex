@@ -23,6 +23,6 @@
     "typescript": "^4.2.3"
   },
   "dependencies": {
-    "msgpackr": "^1.2.7"
+    "msgpackr": "1.2.9"
   }
 }
