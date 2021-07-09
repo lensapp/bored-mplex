@@ -9,6 +9,7 @@
     "clean": "rm -rf lib",
     "dist": "yarn clean && yarn tsc",
     "lint": "yarn run eslint --ext js,ts --max-warnings=0 .",
+    "postinstall": "yarn dist",
     "postversion": "git push origin main --tags"
   },
   "devDependencies": {
