@@ -123,6 +123,14 @@ describe("BoredMplex", () => {
   });
 
   describe("keepalive", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it("responds to ping with pong", (done) => {
       const stream = new PassThrough();
       const mplex = new BoredMplex();
@@ -155,11 +163,23 @@ describe("BoredMplex", () => {
     });
 
     it("emits timeout event if pong takes too long", (done) => {
-      jest.useFakeTimers();
-
       const mplex = new BoredMplex();
 
       mplex.enableKeepAlive(1000);
+      mplex.on("timeout", () => {
+        done();
+      });
+      jest.advanceTimersByTime(5000);
+    });
+
+    it("emits timeout event if stream has been closed before ping", (done) => {
+      const passthrough = new PassThrough();
+      const mplex = new BoredMplex();
+
+      mplex.enableKeepAlive(1000);
+      mplex.pipe(passthrough);
+      passthrough.on("error", (err) => err);
+      passthrough.end();
       mplex.on("timeout", () => {
         done();
       });
