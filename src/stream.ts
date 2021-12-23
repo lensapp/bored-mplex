@@ -20,10 +20,11 @@ export class Stream extends Duplex {
     });
   }
 
-  openStream() {
+  openStream(data?: Buffer) {
     this.session.push(pack({
       id: this.id,
-      type: "open"
+      type: "open",
+      data
     }));
   }
 
