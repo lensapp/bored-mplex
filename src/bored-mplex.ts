@@ -9,7 +9,7 @@ export class BoredMplex extends Transform {
   private pingInterval?: NodeJS.Timeout;
   private pingTimeout?: NodeJS.Timeout;
 
-  constructor(private onStream?: (stream: Stream) => void, opts?: TransformOptions) {
+  constructor(private onStream?: (stream: Stream, data?: Buffer) => void, opts?: TransformOptions) {
     super(opts);
 
     this.on("error", () => {
@@ -81,7 +81,7 @@ export class BoredMplex extends Transform {
     }
 
     if (!stream && msg.type === "open") {
-      stream = this.createStream(msg.id);
+      stream = this.createStream(msg.id, msg.data);
 
       return callback();
     }
@@ -109,11 +109,11 @@ export class BoredMplex extends Transform {
     callback();
   }
 
-  protected createStream(id: number): Stream {
+  protected createStream(id: number, data?: Buffer): Stream {
     const stream = new Stream(id, this);
 
     this.streams.set(id, stream);
-    this.onStream?.(stream);
+    this.onStream?.(stream, data);
 
     return stream;
   }

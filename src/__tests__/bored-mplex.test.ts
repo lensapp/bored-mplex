@@ -7,20 +7,28 @@ describe("BoredMplex", () => {
   const sleep = (amount: number) => new Promise((resolve) => setTimeout(resolve, amount));
 
   describe("onStream", () => {
-    it ("calls onStream on open", async () => {
-      let streamOpened = false;
+    it ("calls onStream on open", (done) => {
       const mplex = new BoredMplex(() => {
-        streamOpened = true;
+        done();
       });
 
       mplex.write(pack({
         id: "foo",
         type: "open"
       }));
+    });
 
-      await sleep(10);
+    it ("passes data from open to onStream", (done) => {
+      const mplex = new BoredMplex((stream, data) => {
+        expect(data?.toString()).toEqual("this-is-data");
+        done();
+      });
 
-      expect(streamOpened).toBeTruthy();
+      mplex.write(pack({
+        id: "foo",
+        type: "open",
+        data: Buffer.from("this-is-data")
+      }));
     });
 
     it ("does not call onStream without open", async () => {
