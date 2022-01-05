@@ -8,11 +8,11 @@ export class BoredMplexClient extends BoredMplex {
     super();
   }
 
-  openStream(): Stream {
+  openStream(data?: Buffer): Stream {
     const stream = new Stream(this.nextStreamID++, this);
 
     this.streams.set(stream.id, stream);
-    stream.openStream();
+    stream.openStream(data);
 
     return stream;
   }
