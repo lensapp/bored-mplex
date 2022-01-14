@@ -20,13 +20,13 @@ export class BoredMplex extends Transform {
     });
   }
 
-  enableKeepAlive(interval = 10_000) {
+  enableKeepAlive(interval = 10_000, timeout = 2_000) {
     this.pingInterval = setInterval(() => {
       this.pingTimeout = setTimeout(() => {
         if (this.pingInterval) clearInterval(this.pingInterval);
         this.emit("timeout");
         this.end();
-      }, 2_000);
+      }, timeout);
       this.ping();
       this.once("pong", () => {
         if (this.pingTimeout) clearTimeout(this.pingTimeout);
