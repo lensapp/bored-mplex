@@ -23,6 +23,7 @@
     "typescript": "^4.2.3"
   },
   "dependencies": {
+    "@divine/synchronization": "^1.2.1",
     "msgpackr": "1.2.9"
   }
 }
