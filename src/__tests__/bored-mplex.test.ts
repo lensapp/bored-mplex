@@ -9,6 +9,7 @@ describe("BoredMplex", () => {
   describe("onStream", () => {
     it ("calls onStream on open", (done) => {
       const mplex = new BoredMplex(() => {
+        mplex.end();
         done();
       });
 
@@ -21,6 +22,7 @@ describe("BoredMplex", () => {
     it ("passes data from open to onStream", (done) => {
       const mplex = new BoredMplex((stream, data) => {
         expect(data?.toString()).toEqual("this-is-data");
+        mplex.end();
         done();
       });
 
@@ -45,6 +47,7 @@ describe("BoredMplex", () => {
       await sleep(10);
 
       expect(streamOpened).toBeFalsy();
+      mplex.end();
     });
   });
 
@@ -72,6 +75,7 @@ describe("BoredMplex", () => {
       await sleep(10);
 
       expect(streamData).toEqual(["hello", "world"]);
+      mplex.end();
     });
 
     it ("passes data from stream", async () => {
@@ -114,6 +118,7 @@ describe("BoredMplex", () => {
     it("emits stream end from close message", (done) => {
       const mplex = new BoredMplex((stream) => {
         stream.on("finish", () => {
+          mplex.end();
           done();
         });
       });
@@ -147,6 +152,7 @@ describe("BoredMplex", () => {
         const msg = unpack(chunk);
 
         if (msg.type === "pong") {
+          mplex.end();
           done();
         }
       });
@@ -162,6 +168,7 @@ describe("BoredMplex", () => {
       const mplex = new BoredMplex();
 
       mplex.on("pong", () => {
+        mplex.end();
         done();
       });
       mplex.write(pack({
@@ -175,6 +182,7 @@ describe("BoredMplex", () => {
 
       mplex.enableKeepAlive(1000);
       mplex.on("timeout", () => {
+        mplex.end();
         done();
       });
       jest.advanceTimersByTime(5000);
@@ -189,6 +197,7 @@ describe("BoredMplex", () => {
       passthrough.on("error", (err) => err);
       passthrough.end();
       mplex.on("timeout", () => {
+        mplex.end();
         done();
       });
       jest.advanceTimersByTime(5000);

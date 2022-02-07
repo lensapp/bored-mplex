@@ -13,19 +13,24 @@ export class Stream extends Duplex {
         return;
       }
 
-      session.push(pack({
-        id,
-        type: "close"
-      }));
+      this.pushToSession("close");
+    });
+  }
+
+  private pushToSession(type: string, data?: Buffer) {
+    this.session.queue.push({
+      id: this.id.toString(), 
+      data: pack({
+        id: this.id,
+        type,
+        data
+      }),
+      size: !!data ? data.byteLength : 1
     });
   }
 
   openStream(data?: Buffer) {
-    this.session.push(pack({
-      id: this.id,
-      type: "open",
-      data
-    }));
+    this.pushToSession("open", data);
   }
 
   public _read(): void {
@@ -35,11 +40,7 @@ export class Stream extends Duplex {
   public _write(chunk: any, encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
     if (this.session.writableEnded) return;
 
-    this.session.push(pack({
-      id: this.id,
-      type: "data",
-      data: chunk
-    }));
+    this.pushToSession("data", chunk);
 
     callback();
   }

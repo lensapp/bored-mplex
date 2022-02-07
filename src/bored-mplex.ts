@@ -1,10 +1,12 @@
 import { Transform, TransformCallback, TransformOptions } from "stream";
 import { pack, unpack } from "msgpackr";
+import { DRRQueue } from "@divine/synchronization";
 import { Stream } from "./stream";
 import { StreamMessage } from "./types";
 
 export class BoredMplex extends Transform {
   public streams: Map<number, Stream> = new Map();
+  public queue = new DRRQueue<Buffer>(this.writableHighWaterMark);
 
   private pingInterval?: NodeJS.Timeout;
   private pingTimeout?: NodeJS.Timeout;
@@ -14,10 +16,41 @@ export class BoredMplex extends Transform {
 
     this.on("error", () => {
       this.streams.forEach((stream) => stream.end());
+      this.queue = new DRRQueue<Buffer>();
     });
     this.on("finish", () => {
       this.streams.forEach((stream) => stream.end());
+      this.queue = new DRRQueue<Buffer>();
     });
+
+    this.processQueue();
+  }
+
+  private processQueue() {
+    if (this.writableEnded) {
+      return;
+    }
+
+    const data = this.queue.shift();
+
+    if (data) {
+      const ok = this.push(data);
+
+      if (!ok) {
+        this.once("drain", () => {
+          this.processQueue();
+        });
+        
+        return;
+      }
+    }
+
+    setImmediate(() => this.processQueue());
+  }
+
+  _read(size: number) {
+    this.emit("drain");
+    super._read(size);
   }
 
   enableKeepAlive(interval = 10_000, timeout = 2_000) {
@@ -43,7 +76,6 @@ export class BoredMplex extends Transform {
     if (this.writableEnded) {
       return;
     }
-
     this.push(pack({
       id: 0,
       type: "ping"
@@ -54,7 +86,6 @@ export class BoredMplex extends Transform {
     if (this.writableEnded) {
       return;
     }
-
     this.push(pack({
       id: 0,
       type: "pong"
