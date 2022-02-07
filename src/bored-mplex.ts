@@ -7,7 +7,6 @@ import { StreamMessage } from "./types";
 export class BoredMplex extends Transform {
   public streams: Map<number, Stream> = new Map();
   public queue = new DRRQueue<Buffer>(16384);
-  public rxQueue = new DRRQueue<Buffer>(16384);
 
   private pingInterval?: NodeJS.Timeout;
   private pingTimeout?: NodeJS.Timeout;
@@ -18,12 +17,10 @@ export class BoredMplex extends Transform {
     this.on("error", () => {
       this.streams.forEach((stream) => stream.end());
       this.queue = new DRRQueue<Buffer>();
-      this.rxQueue = new DRRQueue<Buffer>();
     });
     this.on("finish", () => {
       this.streams.forEach((stream) => stream.end());
       this.queue = new DRRQueue<Buffer>();
-      this.rxQueue = new DRRQueue<Buffer>();
     });
 
     this.processQueue();
