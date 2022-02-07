@@ -6,7 +6,7 @@ import { StreamMessage } from "./types";
 
 export class BoredMplex extends Transform {
   public streams: Map<number, Stream> = new Map();
-  public queue = new DRRQueue<Buffer>(16384);
+  public queue = new DRRQueue<Buffer>(this.writableHighWaterMark);
 
   private pingInterval?: NodeJS.Timeout;
   private pingTimeout?: NodeJS.Timeout;

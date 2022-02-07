@@ -4,10 +4,19 @@ import { PassThrough } from "stream";
 import { StreamMessage } from "../types";
 
 describe("BoredMplexClient", () => {
+  let mplex: BoredMplexClient;
+
+  beforeEach(() => {
+    mplex = new BoredMplexClient();
+  });
+
+  afterEach(() => {
+    mplex.end();
+  });
+
   it("transforms chunks", (done) => {
     const incoming = new PassThrough();
     const outgoing = new PassThrough();
-    const mplex = new BoredMplexClient();
     const stream = mplex.openStream();
 
     mplex.pipe(outgoing);
@@ -28,8 +37,6 @@ describe("BoredMplexClient", () => {
 
   describe("openStream", () => {
     it("returns a stream with id", () => {
-      const mplex = new BoredMplexClient();
-
       expect(mplex.openStream().id).toEqual(1);
       expect(mplex.openStream().id).toEqual(2);
     });
