@@ -18,7 +18,7 @@ export class Stream extends Duplex {
   }
 
   private pushToSession(type: string, data?: Buffer) {
-    this.session.queue.push({
+    this.session.pushToQueue({
       id: this.id.toString(), 
       data: pack({
         id: this.id,
