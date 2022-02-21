@@ -1,6 +1,6 @@
 import { Transform, TransformCallback, TransformOptions } from "stream";
 import { pack, unpack } from "msgpackr";
-import { DRRQueue } from "@divine/synchronization";
+import { DRRData, DRRQueue } from "@divine/synchronization";
 import { Stream } from "./stream";
 import { StreamMessage } from "./types";
 
@@ -10,6 +10,7 @@ export class BoredMplex extends Transform {
 
   private pingInterval?: NodeJS.Timeout;
   private pingTimeout?: NodeJS.Timeout;
+  private processPending = false;
 
   constructor(private onStream?: (stream: Stream, data?: Buffer) => void, opts?: TransformOptions) {
     super(opts);
@@ -22,11 +23,24 @@ export class BoredMplex extends Transform {
       this.streams.forEach((stream) => stream.end());
       this.queue = new DRRQueue<Buffer>();
     });
+  }
+
+  process() {
+    if (this.processPending) return;
+
+    this.processPending = true;
 
     this.processQueue();
   }
 
+  pushToQueue(data: DRRData<Buffer>) {
+    this.queue.push(data);
+    this.process();
+  }
+
   private processQueue() {
+    this.processPending = false;
+
     if (this.writableEnded) {
       return;
     }
@@ -38,14 +52,16 @@ export class BoredMplex extends Transform {
 
       if (!ok) {
         this.once("drain", () => {
-          this.processQueue();
+          setImmediate(() => this.process());
         });
         
         return;
       }
     }
 
-    setImmediate(() => this.processQueue());
+    if (this.queue.length > 0) {
+      setImmediate(() => this.process());
+    }
   }
 
   _read(size: number) {
