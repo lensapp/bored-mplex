@@ -25,17 +25,18 @@ export class BoredMplex extends Transform {
     });
   }
 
-  process() {
+  pushToQueue(data: DRRData<Buffer>) {
+    this.queue.push(data);
+
+    this.process();
+  }
+
+  private process() {
     if (this.processPending) return;
 
     this.processPending = true;
 
     this.processQueue();
-  }
-
-  pushToQueue(data: DRRData<Buffer>) {
-    this.queue.push(data);
-    this.process();
   }
 
   private processQueue() {
