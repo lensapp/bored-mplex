@@ -40,8 +40,6 @@ export class BoredMplex extends Transform {
   }
 
   private processQueue() {
-    this.processPending = false;
-
     if (this.writableEnded) {
       return;
     }
@@ -53,15 +51,17 @@ export class BoredMplex extends Transform {
 
       if (!ok) {
         this.once("drain", () => {
-          setImmediate(() => this.process());
+          setImmediate(() => this.processQueue());
         });
-        
+
         return;
       }
     }
 
     if (this.queue.length > 0) {
-      setImmediate(() => this.process());
+      setImmediate(() => this.processQueue());
+    } else {
+      this.processPending = false;
     }
   }
 
