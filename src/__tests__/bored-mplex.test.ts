@@ -181,7 +181,7 @@ describe("BoredMplex", () => {
       const mplex = new BoredMplex();
 
       mplex.enableKeepAlive(1000);
-      mplex.on("timeout", () => {
+      mplex.once("timeout", () => {
         mplex.end();
         done();
       });
@@ -196,11 +196,71 @@ describe("BoredMplex", () => {
       mplex.pipe(passthrough);
       passthrough.on("error", (err) => err);
       passthrough.end();
-      mplex.on("timeout", () => {
+      mplex.once("timeout", () => {
         mplex.end();
         done();
       });
       jest.advanceTimersByTime(5000);
+    });
+  });
+
+  describe("stream idle timeout", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-01-01T00:00:00.000Z"));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("cleans up idle streams after timeout", () => {
+      const mplex = new BoredMplex(undefined, { streamIdleTimeout: 5000 });
+
+      mplex.write(pack({ id: 1, type: "open" }));
+
+      expect(mplex.streams.size).toBe(1);
+
+      // Interval runs at 2500ms (half of 5000). Need to wait for check after 5000ms.
+      jest.advanceTimersByTime(7500);
+
+      expect(mplex.streams.size).toBe(0);
+      mplex.end();
+    });
+
+    it("does not clean up active streams", () => {
+      const mplex = new BoredMplex(undefined, { streamIdleTimeout: 5000 });
+
+      mplex.write(pack({ id: 1, type: "open" }));
+
+      // Advance 3 seconds, stream should still exist
+      jest.advanceTimersByTime(3000);
+      expect(mplex.streams.size).toBe(1);
+
+      // Send data to reset activity timestamp
+      mplex.write(pack({ id: 1, type: "data", data: Buffer.from("activity") }));
+
+      // Advance another 3 seconds (6 total since open, but only 3 since activity)
+      jest.advanceTimersByTime(3000);
+      expect(mplex.streams.size).toBe(1);
+
+      // Advance 7.5 more seconds - now >5 seconds since last activity, check runs
+      jest.advanceTimersByTime(7500);
+
+      expect(mplex.streams.size).toBe(0);
+      mplex.end();
+    });
+
+    it("is disabled by default", async () => {
+      jest.useRealTimers();
+      const mplex = new BoredMplex();
+
+      mplex.write(pack({ id: 1, type: "open" }));
+
+      await sleep(10);
+
+      expect(mplex.streams.size).toBe(1);
+      mplex.end();
     });
   });
 });

@@ -3,6 +3,8 @@ import { Duplex } from "stream";
 import { BoredMplex } from "./bored-mplex";
 
 export class Stream extends Duplex {
+  public lastActivity: number = Date.now();
+
   constructor(public id: number, private session: BoredMplex) {
     super({
       emitClose: true
@@ -31,6 +33,10 @@ export class Stream extends Duplex {
 
   openStream(data?: Buffer) {
     this.pushToSession("open", data);
+  }
+
+  touch(): void {
+    this.lastActivity = Date.now();
   }
 
   public _read(): void {
