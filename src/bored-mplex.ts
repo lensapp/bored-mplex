@@ -4,25 +4,60 @@ import { DRRData, DRRQueue } from "@divine/synchronization";
 import { Stream } from "./stream";
 import { StreamMessage } from "./types";
 
+export interface BoredMplexOptions extends TransformOptions {
+  streamIdleTimeout?: number;
+}
+
 export class BoredMplex extends Transform {
   public streams: Map<number, Stream> = new Map();
   public queue = new DRRQueue<Buffer>(this.writableHighWaterMark);
 
   private pingInterval?: NodeJS.Timeout;
   private pingTimeout?: NodeJS.Timeout;
+  private idleCheckInterval?: NodeJS.Timeout;
+  private streamIdleTimeout: number;
   private processPending = false;
 
-  constructor(private onStream?: (stream: Stream, data?: Buffer) => void, opts?: TransformOptions) {
+  constructor(private onStream?: (stream: Stream, data?: Buffer) => void, opts?: BoredMplexOptions) {
     super(opts);
+    this.streamIdleTimeout = opts?.streamIdleTimeout ?? 0;
 
     this.on("error", () => {
+      this.stopIdleCheck();
       this.streams.forEach((stream) => stream.end());
       this.queue = new DRRQueue<Buffer>();
     });
     this.on("finish", () => {
+      this.stopIdleCheck();
       this.streams.forEach((stream) => stream.end());
       this.queue = new DRRQueue<Buffer>();
     });
+
+    if (this.streamIdleTimeout > 0) {
+      this.startIdleCheck();
+    }
+  }
+
+  private startIdleCheck(): void {
+    // Cap check interval at 30s to ensure timely cleanup even with long timeouts
+    const interval = Math.min(this.streamIdleTimeout / 2, 30_000);
+
+    this.idleCheckInterval = setInterval(() => {
+      const now = Date.now();
+
+      this.streams.forEach((stream, id) => {
+        if (now - stream.lastActivity > this.streamIdleTimeout) {
+          stream.end();
+          this.streams.delete(id);
+        }
+      });
+    }, interval);
+  }
+
+  private stopIdleCheck(): void {
+    if (this.idleCheckInterval) {
+      clearInterval(this.idleCheckInterval);
+    }
   }
 
   pushToQueue(data: DRRData<Buffer>) {
@@ -140,6 +175,8 @@ export class BoredMplex extends Transform {
 
     switch (msg.type) {
       case "data": {
+        stream.touch();
+
         if (msg.data) {
           stream.push(msg.data);
         }
