@@ -123,7 +123,7 @@ export class BoredMplex extends Transform {
   }
 
   private handleMessage(msg: StreamMessage): void {
-    let stream = this.streams.get(msg.id);
+    const stream = this.streams.get(msg.id);
 
     switch (msg.type) {
       case "ping": {

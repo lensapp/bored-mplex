@@ -220,6 +220,7 @@ describe("BoredMplex", () => {
 
       // Split the data message in half
       const splitPoint = Math.floor(dataMsg.length / 2);
+
       mplex.write(dataMsg.slice(0, splitPoint));
       mplex.write(dataMsg.slice(splitPoint));
 
@@ -245,6 +246,7 @@ describe("BoredMplex", () => {
 
       // Send both data messages concatenated as one chunk
       const combined = Buffer.concat([dataMsg1, dataMsg2]);
+
       mplex.write(combined);
 
       await sleep(10);
@@ -271,6 +273,7 @@ describe("BoredMplex", () => {
       // First half of msg1 + complete msg2 + second half of msg1 is invalid
       // Instead: first half of msg1, then second half + complete msg2, then complete msg3
       const splitPoint = Math.floor(dataMsg1.length / 2);
+
       mplex.write(dataMsg1.slice(0, splitPoint));
       mplex.write(Buffer.concat([dataMsg1.slice(splitPoint), dataMsg2]));
       mplex.write(dataMsg3);
