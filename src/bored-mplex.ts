@@ -11,6 +11,7 @@ export class BoredMplex extends Transform {
   private pingInterval?: NodeJS.Timeout;
   private pingTimeout?: NodeJS.Timeout;
   private processPending = false;
+  private queuedBytes = 0;
 
   constructor(private onStream?: (stream: Stream, data?: Buffer) => void, opts?: TransformOptions) {
     super(opts);
@@ -18,17 +19,24 @@ export class BoredMplex extends Transform {
     this.on("error", () => {
       this.streams.forEach((stream) => stream.end());
       this.queue = new DRRQueue<Buffer>();
+      this.queuedBytes = 0;
     });
     this.on("finish", () => {
       this.streams.forEach((stream) => stream.end());
       this.queue = new DRRQueue<Buffer>();
+      this.queuedBytes = 0;
     });
   }
 
-  pushToQueue(data: DRRData<Buffer>) {
+  pushToQueue(data: DRRData<Buffer>): boolean {
     this.queue.push(data);
+    this.queuedBytes += data.size;
+
+    const hasCapacity = this.queuedBytes < this.writableHighWaterMark;
 
     this.process();
+
+    return hasCapacity;
   }
 
   private process() {
@@ -47,6 +55,7 @@ export class BoredMplex extends Transform {
     const data = this.queue.shift();
 
     if (data) {
+      this.queuedBytes -= data.byteLength;
       const ok = this.push(data);
 
       if (!ok) {

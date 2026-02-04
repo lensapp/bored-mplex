@@ -181,7 +181,7 @@ describe("BoredMplex", () => {
       const mplex = new BoredMplex();
 
       mplex.enableKeepAlive(1000);
-      mplex.on("timeout", () => {
+      mplex.once("timeout", () => {
         mplex.end();
         done();
       });
@@ -196,11 +196,64 @@ describe("BoredMplex", () => {
       mplex.pipe(passthrough);
       passthrough.on("error", (err) => err);
       passthrough.end();
-      mplex.on("timeout", () => {
+      mplex.once("timeout", () => {
         mplex.end();
         done();
       });
       jest.advanceTimersByTime(5000);
+    });
+  });
+
+  describe("backpressure", () => {
+    it("pushToQueue returns false when queued bytes exceed high water mark", () => {
+      const mplex = new BoredMplex(undefined, { writableHighWaterMark: 100 });
+
+      // Prevent queue from draining by making shift return undefined
+      mplex.queue.shift = () => undefined;
+
+      // First push: 50 bytes, under threshold
+      expect(mplex.pushToQueue({ id: "1", data: Buffer.alloc(50), size: 50 })).toBe(true);
+
+      // Second push: 60 more bytes, total 110 exceeds 100 byte threshold
+      const result = mplex.pushToQueue({ id: "2", data: Buffer.alloc(60), size: 60 });
+
+      expect(result).toBe(false);
+      mplex.end();
+    });
+
+    it("pushToQueue returns true when queue has capacity", () => {
+      const mplex = new BoredMplex(undefined, { writableHighWaterMark: 1000 });
+
+      const result = mplex.pushToQueue({ id: "1", data: Buffer.alloc(10), size: 10 });
+
+      expect(result).toBe(true);
+      mplex.end();
+    });
+
+    it("stream write waits for drain when backpressure is active", (done) => {
+      const mplex = new BoredMplex(undefined, { writableHighWaterMark: 100 });
+
+      mplex.write(pack({ id: 1, type: "open" }));
+      const stream = mplex.streams.get(1)!;
+
+      // Fill queue beyond high water mark (500 bytes > 100 byte threshold)
+      for (let i = 0; i < 5; i++) {
+        mplex.pushToQueue({ id: `fill-${i}`, data: Buffer.alloc(100), size: 100 });
+      }
+
+      let callbackCalled = false;
+
+      stream.write(Buffer.from("test"), () => {
+        callbackCalled = true;
+        mplex.end();
+        done();
+      });
+
+      // Callback not called synchronously
+      expect(callbackCalled).toBe(false);
+
+      // Emit drain to trigger callback
+      mplex.emit("drain");
     });
   });
 });
