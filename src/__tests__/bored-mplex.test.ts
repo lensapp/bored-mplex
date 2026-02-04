@@ -203,4 +203,82 @@ describe("BoredMplex", () => {
       jest.advanceTimersByTime(5000);
     });
   });
+
+  describe("message framing", () => {
+    it("handles split messages across chunks", async () => {
+      const streamData: string[] = [];
+      const mplex = new BoredMplex((stream) => {
+        stream.on("data", (chunk: Buffer) => {
+          streamData.push(chunk.toString());
+        });
+      });
+
+      const openMsg = pack({ id: "foo", type: "open" });
+      const dataMsg = pack({ id: "foo", type: "data", data: Buffer.from("hello") });
+
+      mplex.write(openMsg);
+
+      // Split the data message in half
+      const splitPoint = Math.floor(dataMsg.length / 2);
+      mplex.write(dataMsg.slice(0, splitPoint));
+      mplex.write(dataMsg.slice(splitPoint));
+
+      await sleep(10);
+
+      expect(streamData).toEqual(["hello"]);
+      mplex.end();
+    });
+
+    it("handles concatenated messages in one chunk", async () => {
+      const streamData: string[] = [];
+      const mplex = new BoredMplex((stream) => {
+        stream.on("data", (chunk: Buffer) => {
+          streamData.push(chunk.toString());
+        });
+      });
+
+      const openMsg = pack({ id: "foo", type: "open" });
+      const dataMsg1 = pack({ id: "foo", type: "data", data: Buffer.from("hello") });
+      const dataMsg2 = pack({ id: "foo", type: "data", data: Buffer.from("world") });
+
+      mplex.write(openMsg);
+
+      // Send both data messages concatenated as one chunk
+      const combined = Buffer.concat([dataMsg1, dataMsg2]);
+      mplex.write(combined);
+
+      await sleep(10);
+
+      expect(streamData).toEqual(["hello", "world"]);
+      mplex.end();
+    });
+
+    it("handles interleaved split and complete messages", async () => {
+      const streamData: string[] = [];
+      const mplex = new BoredMplex((stream) => {
+        stream.on("data", (chunk: Buffer) => {
+          streamData.push(chunk.toString());
+        });
+      });
+
+      const openMsg = pack({ id: "foo", type: "open" });
+      const dataMsg1 = pack({ id: "foo", type: "data", data: Buffer.from("first") });
+      const dataMsg2 = pack({ id: "foo", type: "data", data: Buffer.from("second") });
+      const dataMsg3 = pack({ id: "foo", type: "data", data: Buffer.from("third") });
+
+      mplex.write(openMsg);
+
+      // First half of msg1 + complete msg2 + second half of msg1 is invalid
+      // Instead: first half of msg1, then second half + complete msg2, then complete msg3
+      const splitPoint = Math.floor(dataMsg1.length / 2);
+      mplex.write(dataMsg1.slice(0, splitPoint));
+      mplex.write(Buffer.concat([dataMsg1.slice(splitPoint), dataMsg2]));
+      mplex.write(dataMsg3);
+
+      await sleep(10);
+
+      expect(streamData).toEqual(["first", "second", "third"]);
+      mplex.end();
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import { Transform, TransformCallback, TransformOptions } from "stream";
-import { pack, unpack } from "msgpackr";
+import { pack, UnpackrStream } from "msgpackr";
 import { DRRData, DRRQueue } from "@divine/synchronization";
 import { Stream } from "./stream";
 import { StreamMessage } from "./types";
@@ -11,9 +11,18 @@ export class BoredMplex extends Transform {
   private pingInterval?: NodeJS.Timeout;
   private pingTimeout?: NodeJS.Timeout;
   private processPending = false;
+  private unpackrStream: UnpackrStream;
 
   constructor(private onStream?: (stream: Stream, data?: Buffer) => void, opts?: TransformOptions) {
     super(opts);
+
+    this.unpackrStream = new UnpackrStream({ mapsAsObjects: true });
+    this.unpackrStream.on("data", (msg: StreamMessage) => {
+      this.handleMessage(msg);
+    });
+    this.unpackrStream.on("error", (err) => {
+      this.emit("error", err);
+    });
 
     this.on("error", () => {
       this.streams.forEach((stream) => stream.end());
@@ -109,8 +118,11 @@ export class BoredMplex extends Transform {
     }));
   }
 
-  _transform(chunk: Buffer, encoding: BufferEncoding, callback: TransformCallback): void {
-    const msg = unpack(chunk) as StreamMessage;
+  _transform(chunk: Buffer, _encoding: BufferEncoding, callback: TransformCallback): void {
+    this.unpackrStream.write(chunk, callback);
+  }
+
+  private handleMessage(msg: StreamMessage): void {
     let stream = this.streams.get(msg.id);
 
     switch (msg.type) {
@@ -118,24 +130,24 @@ export class BoredMplex extends Transform {
         this.emit("ping");
         this.pong();
 
-        return callback();
+        return;
       }
 
       case "pong": {
         this.emit("pong");
 
-        return callback();
+        return;
       }
     }
 
     if (!stream && msg.type === "open") {
-      stream = this.createStream(msg.id, msg.data);
+      this.createStream(msg.id, msg.data);
 
-      return callback();
+      return;
     }
 
     if (!stream) {
-      return callback();
+      return;
     }
 
     switch (msg.type) {
@@ -153,8 +165,6 @@ export class BoredMplex extends Transform {
         break;
       }
     }
-
-    callback();
   }
 
   protected createStream(id: number, data?: Buffer): Stream {
