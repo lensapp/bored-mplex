@@ -17,9 +17,9 @@ export class Stream extends Duplex {
     });
   }
 
-  private pushToSession(type: string, data?: Buffer) {
-    this.session.pushToQueue({
-      id: this.id.toString(), 
+  private pushToSession(type: string, data?: Buffer): boolean {
+    return this.session.pushToQueue({
+      id: this.id.toString(),
       data: pack({
         id: this.id,
         type,
@@ -40,7 +40,26 @@ export class Stream extends Duplex {
   public _write(chunk: any, encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
     if (this.session.writableEnded) return;
 
-    this.pushToSession("data", chunk);
+    const hasCapacity = this.pushToSession("data", chunk);
+
+    if (!hasCapacity) {
+      let called = false;
+      const onDrain = () => {
+        if (called) return;
+        called = true;
+        this.session.removeListener("finish", onFinish);
+        callback();
+      };
+      const onFinish = () => {
+        if (called) return;
+        called = true;
+        this.session.removeListener("drain", onDrain);
+        callback();
+      };
+      this.session.once("drain", onDrain);
+      this.session.once("finish", onFinish);
+      return;
+    }
 
     callback();
   }
