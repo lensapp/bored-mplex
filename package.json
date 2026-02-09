@@ -5,14 +5,15 @@
   "author": "Mirantis Inc",
   "license": "MIT",
   "scripts": {
-    "test": "yarn jest",
+    "test": "jest",
     "clean": "rm -rf lib",
-    "dist": "yarn clean && yarn tsc",
-    "lint": "yarn run eslint --ext js,ts --max-warnings=0 .",
+    "dist": "npm run clean && tsc",
+    "lint": "eslint --ext js,ts --max-warnings=0 .",
     "postversion": "git push origin main --tags"
   },
   "devDependencies": {
     "@types/jest": "^26.0.21",
+    "@types/node": "^14.18.63",
     "@typescript-eslint/eslint-plugin": "^4.14.2",
     "@typescript-eslint/parser": "^4.0.0",
     "eslint": "^7.7.0",
@@ -25,5 +26,8 @@
   "dependencies": {
     "@divine/synchronization": "^1.2.1",
     "msgpackr": "1.10.1"
+  },
+  "overrides": {
+    "@types/babel__traverse": "7.18.5"
   }
 }
