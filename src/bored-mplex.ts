@@ -25,11 +25,11 @@ export class BoredMplex extends Transform {
     });
 
     this.on("error", () => {
-      this.streams.forEach((stream) => stream.end());
+      this.streams.forEach((stream) => stream.shutdown());
       this.queue = new DRRQueue<Buffer>();
     });
     this.on("finish", () => {
-      this.streams.forEach((stream) => stream.end());
+      this.streams.forEach((stream) => stream.shutdown());
       this.queue = new DRRQueue<Buffer>();
     });
   }
@@ -159,7 +159,7 @@ export class BoredMplex extends Transform {
       }
 
       case "close": {
-        stream.end();
+        stream.shutdown();
         this.streams.delete(msg.id);
 
         break;
