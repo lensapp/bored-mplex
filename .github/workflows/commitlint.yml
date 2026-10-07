@@ -1,0 +1,21 @@
+name: Commitlint
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  commitlint:
+    name: Commitlint
+    # Dependabot names its commits "Bump ...". Without a "fix:" they make no
+    # release, which is the same as before.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint commits
+        uses: wagoid/commitlint-github-action@v6
