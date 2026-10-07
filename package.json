@@ -4,6 +4,10 @@
   "main": "lib/index",
   "author": "Mirantis Inc",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lensapp/bored-mplex.git"
+  },
   "scripts": {
     "test": "jest",
     "clean": "rm -rf lib",
