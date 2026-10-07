@@ -3,18 +3,23 @@ import { Duplex } from "stream";
 import { BoredMplex } from "./bored-mplex";
 
 export class Stream extends Duplex {
+  private closeSent = false;
+
   constructor(public id: number, private session: BoredMplex) {
     super({
       emitClose: true
     });
 
-    this.on("finish", () => {
-      if (session.writableEnded) {
-        return;
-      }
+    this.on("finish", () => this.sendClose());
+  }
 
-      this.pushToSession("close");
-    });
+  private sendClose() {
+    if (this.closeSent || this.session.writableEnded) {
+      return;
+    }
+
+    this.closeSent = true;
+    this.pushToSession("close");
   }
 
   private pushToSession(type: string, data?: Buffer) {
@@ -33,6 +38,11 @@ export class Stream extends Duplex {
     this.pushToSession("open", data);
   }
 
+  shutdown() {
+    this.push(null);
+    this.end();
+  }
+
   public _read(): void {
     //
   }
@@ -43,5 +53,11 @@ export class Stream extends Duplex {
     this.pushToSession("data", chunk);
 
     callback();
+  }
+
+  public _destroy(error: Error | null, callback: (error: Error | null) => void): void {
+    this.sendClose();
+
+    callback(error);
   }
 }
