@@ -22,7 +22,7 @@ export class Stream extends Duplex {
     this.pushToSession("close");
   }
 
-  private pushToSession(type: string, data?: Buffer) {
+  private pushToSession(type: string, data?: Buffer, onSent?: () => void) {
     this.session.pushToQueue({
       id: this.id.toString(), 
       data: pack({
@@ -31,7 +31,7 @@ export class Stream extends Duplex {
         data
       }),
       size: !!data ? data.byteLength : 1
-    });
+    }, onSent);
   }
 
   openStream(data?: Buffer) {
@@ -48,11 +48,9 @@ export class Stream extends Duplex {
   }
 
   public _write(chunk: any, encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
-    if (this.session.writableEnded) return;
-
-    this.pushToSession("data", chunk);
-
-    callback();
+    // Hold the writer until the frame leaves the session queue, so a writer
+    // faster than the transport waits instead of growing the queue.
+    this.pushToSession("data", chunk, callback);
   }
 
   public _destroy(error: Error | null, callback: (error: Error | null) => void): void {
