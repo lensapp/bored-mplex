@@ -11,6 +11,7 @@ export class BoredMplex extends Transform {
   private pingInterval?: NodeJS.Timeout;
   private pingTimeout?: NodeJS.Timeout;
   private processPending = false;
+  private frameSent = new Map<Buffer, () => void>();
   private unpackrStream: UnpackrStream;
 
   constructor(private onStream?: (stream: Stream, data?: Buffer) => void, opts?: TransformOptions) {
@@ -26,15 +27,18 @@ export class BoredMplex extends Transform {
 
     this.on("error", () => {
       this.streams.forEach((stream) => stream.shutdown());
-      this.queue = new DRRQueue<Buffer>();
+      this.dropQueue();
     });
     this.on("finish", () => {
       this.streams.forEach((stream) => stream.shutdown());
-      this.queue = new DRRQueue<Buffer>();
+      this.dropQueue();
     });
   }
 
-  pushToQueue(data: DRRData<Buffer>) {
+  pushToQueue(data: DRRData<Buffer>, onSent?: () => void) {
+    if (this.destroyed || this.writableEnded) return onSent?.();
+
+    if (onSent) this.frameSent.set(data.data, onSent);
     this.queue.push(data);
 
     this.process();
@@ -58,6 +62,8 @@ export class BoredMplex extends Transform {
     if (data) {
       const ok = this.push(data);
 
+      this.releaseFrame(data);
+
       if (!ok) {
         this.once("drain", () => {
           setImmediate(() => this.processQueue());
@@ -72,6 +78,25 @@ export class BoredMplex extends Transform {
     } else {
       this.processPending = false;
     }
+  }
+
+  private releaseFrame(frame: Buffer) {
+    const onSent = this.frameSent.get(frame);
+
+    if (!onSent) return;
+
+    this.frameSent.delete(frame);
+    onSent();
+  }
+
+  // The dropped frames' writers are released as if sent, as writes after the
+  // session ended always were: failing them would emit errors on every stream.
+  private dropQueue() {
+    const onSent = [...this.frameSent.values()];
+
+    this.queue = new DRRQueue<Buffer>();
+    this.frameSent.clear();
+    onSent.forEach((release) => release());
   }
 
   _read(size: number) {
