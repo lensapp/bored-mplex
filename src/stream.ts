@@ -6,10 +6,17 @@ import { BoredMplex } from "./bored-mplex";
 // peers must use the same value.
 export const STREAM_WINDOW = 256 * 1024;
 
+// The data of a "close" that only ends the sending side. A peer with "end"
+// takes it as "end"; older peers ignore the data and close.
+export const CLOSE_AS_END = Buffer.from([1]);
+
 type WriteCallback = (error?: Error | null) => void;
 
 export class Stream extends Duplex {
   private closeSent = false;
+  private closeReceived = false;
+  private endSent = false;
+  private endReceived = false;
   private sendCredit = STREAM_WINDOW;
   private heldWrite?: { chunk: Buffer; callback: WriteCallback };
   private received = 0;
@@ -20,16 +27,49 @@ export class Stream extends Duplex {
       emitClose: true
     });
 
-    this.on("finish", () => this.sendClose());
+    this.on("finish", () => this.sendEnd());
   }
 
+  // Before the peer's hello arrives, this side cannot know if the peer has
+  // "end", so it sends "close" with CLOSE_AS_END. A received "close" is always
+  // answered with "close".
+  private sendEnd() {
+    if (this.closeReceived) {
+      this.sendClose();
+
+      return;
+    }
+
+    if (this.endSent || this.session.writableEnded) {
+      return;
+    }
+
+    this.endSent = true;
+    if (this.session.peerHasEnd) this.pushToSession("end");
+    else this.pushToSession("close", CLOSE_AS_END);
+    this.forgetWhenBothEnded();
+  }
+
+  // With "end" support, the side that sends "close" forgets the stream at once.
   private sendClose() {
     if (this.closeSent || this.session.writableEnded) {
       return;
     }
 
+    if (this.session.peerHasEnd) {
+      if (this.endSent && this.endReceived) return;
+
+      this.session.streams.delete(this.id);
+    }
+
     this.closeSent = true;
     this.pushToSession("close");
+  }
+
+  // A peer that already sent "end" does not answer a "close" that was sent
+  // before its hello arrived.
+  private forgetWhenBothEnded() {
+    if ((this.endSent || this.closeSent) && this.endReceived) this.session.streams.delete(this.id);
   }
 
   private pushToSession(type: string, data?: Buffer, onSent?: () => void) {
@@ -55,7 +95,20 @@ export class Stream extends Duplex {
     this.end();
   }
 
+  receiveEnd() {
+    this.endReceived = true;
+    this.push(null);
+    this.forgetWhenBothEnded();
+  }
+
+  receiveClose() {
+    this.closeReceived = true;
+    this.shutdown();
+  }
+
   receive(data: Buffer) {
+    if (this.endReceived) return;
+
     this.received += data.byteLength;
     this.push(data);
     this.grantWindow();
