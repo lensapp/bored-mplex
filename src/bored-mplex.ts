@@ -5,6 +5,7 @@ import { Stream } from "./stream";
 import { StreamMessage } from "./types";
 
 export class BoredMplex extends Transform {
+  public peerHasWindow = false;
   public streams: Map<number, Stream> = new Map();
   public queue = new DRRQueue<Buffer>(this.writableHighWaterMark);
 
@@ -33,6 +34,14 @@ export class BoredMplex extends Transform {
       this.streams.forEach((stream) => stream.shutdown());
       this.dropQueue();
     });
+
+    // Peers that do not know "hello" ignore it, and keep sending without
+    // a window.
+    this.push(pack({
+      id: 0,
+      type: "hello",
+      data: { window: true }
+    }));
   }
 
   pushToQueue(data: DRRData<Buffer>, onSent?: () => void) {
@@ -163,6 +172,12 @@ export class BoredMplex extends Transform {
 
         return;
       }
+
+      case "hello": {
+        this.peerHasWindow = msg.data?.window === true;
+
+        return;
+      }
     }
 
     if (!stream && msg.type === "open") {
@@ -178,7 +193,14 @@ export class BoredMplex extends Transform {
     switch (msg.type) {
       case "data": {
         if (msg.data) {
-          stream.push(msg.data);
+          stream.receive(msg.data);
+        }
+        break;
+      }
+
+      case "window": {
+        if (msg.data?.byteLength === 4) {
+          stream.addCredit(msg.data.readUInt32BE(0));
         }
         break;
       }

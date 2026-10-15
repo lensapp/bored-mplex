@@ -90,7 +90,7 @@ describe("BoredMplex", () => {
       passthrough.on("data", (chunk: Buffer) => {
         const msg = unpack(chunk) as StreamMessage;
 
-        if (msg.data) streamData.push(msg.data.toString());
+        if (msg.type === "data" && msg.data) streamData.push(msg.data.toString());
       });
 
       mplex.pipe(passthrough);
