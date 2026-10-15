@@ -1,11 +1,12 @@
 import { Transform, TransformCallback, TransformOptions } from "stream";
 import { pack, UnpackrStream } from "msgpackr";
 import { DRRData, DRRQueue } from "@divine/synchronization";
-import { Stream } from "./stream";
+import { CLOSE_AS_END, Stream } from "./stream";
 import { StreamMessage } from "./types";
 
 export class BoredMplex extends Transform {
   public peerHasWindow = false;
+  public peerHasEnd = false;
   public streams: Map<number, Stream> = new Map();
   public queue = new DRRQueue<Buffer>(this.writableHighWaterMark);
 
@@ -36,11 +37,11 @@ export class BoredMplex extends Transform {
     });
 
     // Peers that do not know "hello" ignore it, and keep sending without
-    // a window.
+    // a window, and "close" for "end".
     this.push(pack({
       id: 0,
       type: "hello",
-      data: { window: true }
+      data: { window: true, end: true }
     }));
   }
 
@@ -175,6 +176,7 @@ export class BoredMplex extends Transform {
 
       case "hello": {
         this.peerHasWindow = msg.data?.window === true;
+        this.peerHasEnd = msg.data?.end === true;
 
         return;
       }
@@ -205,8 +207,18 @@ export class BoredMplex extends Transform {
         break;
       }
 
+      case "end": {
+        stream.receiveEnd();
+        break;
+      }
+
       case "close": {
-        stream.shutdown();
+        if (this.peerHasEnd && msg.data?.equals(CLOSE_AS_END)) {
+          stream.receiveEnd();
+          break;
+        }
+
+        stream.receiveClose();
         this.streams.delete(msg.id);
 
         break;

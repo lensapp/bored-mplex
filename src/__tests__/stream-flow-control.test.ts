@@ -106,10 +106,12 @@ describe("stream flow control", () => {
     expect(await readAll(remote, 1 + payload.length)).toHaveLength(1 + payload.length);
   });
 
-  it("sends the whole reply when the peer ends its side while the reply waits for credit", async () => {
+  it("sends the whole reply when a peer without half-close ends its side while the reply waits for credit", async () => {
     const stream = client.openStream();
     const remote = await openedOnServer(stream);
 
+    client.peerHasEnd = false;
+    server.peerHasEnd = false;
     remote.write(payload);
     await until(() => remote.writableLength > 0 && server.queue.length === 0, "the reply to wait for credit");
     stream.end();
